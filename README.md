@@ -31,6 +31,3 @@ pip install .
 Open Anaconda terminal, navigate to the folder with your data, and start `sm_particle_counter`. It will process all existing and any newly created TIFF files in the current folder as long as it is running.
 
 
-# Known problems
-
-Currently, it treats the entire image as one spectral channel. If you have Cy3 and Cy5 channels side by side, it will report the total number of particles in both channels, combined.
