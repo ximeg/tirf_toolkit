@@ -26,7 +26,7 @@ setup(
     url=about["__url__"],
     packages=["sm_particle_counter"],
     include_package_data=True,
-    python_requires=">=3.7.*",
+    python_requires=">=3.7",
     install_requires=[
         "numpy",
         "pandas",
@@ -38,7 +38,7 @@ setup(
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["sm_partcle_counter=sm_partcle_counter.main:main"],
+        "console_scripts": ["sm_particle_counter=sm_particle_counter.main:main"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.7",
