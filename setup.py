@@ -33,6 +33,7 @@ setup(
         "dask_image",
         "dask[distributed]",
         "scipy",
+        "bokeh",
         "matplotlib",
     ],
     license=about["__license__"],
