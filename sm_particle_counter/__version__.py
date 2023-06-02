@@ -1,0 +1,15 @@
+"""
+__version__.py
+~~~~~~~~~~~~~~
+Information about the current version of package
+"""
+
+__title__ = "sm_particle_counter"
+__description__ = (
+    "Counts number of particles in each frame of a TIFF stack from a pTIRF instrument"
+)
+__version__ = "0.0.1"
+__author__ = "Roman Kiselev"
+__author_email__ = "roman.kiselev@stjude.org"
+__license__ = "BSD 2-Clause License"
+__url__ = "https://git.stjude.org/users/rkiselev/repos/sm_particle_counter/browse"
