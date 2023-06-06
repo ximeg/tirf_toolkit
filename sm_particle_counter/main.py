@@ -26,21 +26,20 @@ def get_num_channels(data):
     return 1
 
 
-def get_channel_slices(data):
+def get_channels(data):
     """
-    Return slices of channels in smTIRF.
-    If width is twice the height, we have two channels,
-    and two slices will be returned. Otherwise one slice
-    will be returned that contains the whole image
+    Extract channels from a smTIRF image and return them
+    as a dict object. If width is twice the height, we have
+    two channels, one otherwise.
     """
-    ensure_array(data)
-
-    w = data.shape[-1]
-    n_ch = get_num_channels(data)
-    for ch_index in range(n_ch):
-        x_min = int(ch_index * w / n_ch)
-        x_max = int((ch_index + 1) * w / n_ch)
-        yield np.s_[:, :, x_min:x_max]
+    N = get_num_channels(data)
+    if N == 1:
+        return dict(Cy3=data)
+    elif N == 2:
+        w = data.shape[-1]
+        return dict(Cy3=data[:, :, : w // 2], Cy5=data[:, :, w // 2 :])
+    else:
+        raise NotImplementedError
 
 
 def ensure_array(data, ndim=3):
@@ -69,44 +68,36 @@ def is_array(data, ndim=[2, 3]):
 
 
 def segment_particles(layer, threshold):
+    """
+    Threshold the image to select bright particles and apply maximum filter
+    to erode background around them, leaving only a single white pixel per
+    particle.
+    """
     masked_layer = layer * (layer > threshold)
     return maximum_filter(layer, size=3) == masked_layer
 
 
 def count_particles(tiff_file):
+    fname = splitext(basename(tiff_file))[0]
     image_stack = dask_imread.imread(tiff_file)
 
-    N = image_stack.shape[0]
-    N_particles = dict(Cy3=np.zeros(N), Cy5=np.zeros(N))
-    Cy3 = True
-    for slice in get_channel_slices(image_stack):
-        img = image_stack[slice]
+    fig = plt.figure()
 
+    N_particles = {}
+    for channel, img in get_channels(image_stack).items():
         # Threshold calculation
-        H, W = img.shape[-2:]
         bg, q25, q75 = np.quantile(img[0].compute(), [0.05, 0.25, 0.75])
         iqr = q75 - q25
         thresh = bg + 5 * iqr
 
         # Segmentation of particles
         segmented_stack = img.map_blocks(segment_particles, threshold=thresh).compute()
-
-        channel = "Cy3" if Cy3 else "Cy5"
-        Cy3 = False
-
         N_particles[channel] = segmented_stack.sum(axis=(1, 2))
 
-    return N_particles
+        # Plot the results
+        plt.plot(N_particles[channel], linewidth=0.75, label=channel)
 
-
-def plot_N_particles(tiff_file):
-    fname = splitext(basename(tiff_file))[0]
-
-    N_particles = count_particles(tiff_file)
-
-    fig = plt.figure()
-    plt.plot(N_particles["Cy3"], color="darkred", linewidth=0.75)
-    plt.plot(N_particles["Cy5"], color="navy", linewidth=0.75)
+    plt.legend()
     plt.title(f"{fname}")
     plt.xlabel("Frame number")
     plt.ylabel("Number of particles")
@@ -130,13 +121,14 @@ def main():
                 name, ext = splitext(f)
                 if ".tif" in ext.lower():
                     if not exists(f"{name}_N_particles.csv"):
-                        plot_N_particles(f)
                         print(f)
+                        count_particles(f)
         except PermissionError:
             pass
         except UnknownFormatError:
             pass
         except KeyboardInterrupt:
+            client.cancel()
             break
 
 
