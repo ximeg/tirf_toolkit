@@ -39,7 +39,9 @@ setup(
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["sm_particle_counter=sm_particle_counter.main:main"],
+        "console_scripts": ["sm_particle_counter=sm_particle_counter.main:particle_count_main", 
+                            "estimate_rise_time=sm_particle_counter.main:rise_time_main",
+                            "sm_counter_all=sm_particle_counter.main:count_and_rise"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.7",

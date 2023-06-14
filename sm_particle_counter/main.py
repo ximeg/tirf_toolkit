@@ -11,6 +11,7 @@ from os import listdir
 from pims.api import UnknownFormatError
 import matplotlib
 import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
 
 
 def get_num_channels(data):
@@ -107,8 +108,76 @@ def count_particles(tiff_file):
 
     pd.DataFrame(N_particles).to_csv(fname + "_N_particles.csv")
 
+#%%
 
-def main():
+def estimate_rise_time(tiff_file):
+    
+    fname = splitext(basename(tiff_file))[0]
+    image_stack = dask_imread.imread(tiff_file)
+
+    channel_intensity = {}
+    for channel, img in get_channels(image_stack).items():
+        # Outputting channel intensity over time
+        channel_intensity[channel] = img.sum(axis=(1,2)).compute()
+        
+    df = pd.DataFrame(channel_intensity)
+    
+    # Performing rise time calculation 
+    for channel in df.columns:
+        
+        intensity_data_np = df[channel].to_numpy()
+        half_max = 0.5*(intensity_data_np.min() + intensity_data_np.max())
+        _ = np.where(intensity_data_np > half_max)[0]
+        up, down = _[0], _[-1]
+        
+        front = intensity_data_np[:(up+down)//2]
+        plt.plot(front, alpha = 0.5)    
+        sm = savgol_filter(front, polyorder=3, window_length=31)
+        plt.plot(sm)
+        low, high = np.median(front[:50]), np.median(front[-50:])
+        ten_p = 0.1*(high-low)
+        t10, t90 = low+ten_p, high-ten_p
+        plt.axhline(t10)
+        plt.axhline(t90)
+        t1, t2 = np.argwhere(np.diff(np.sign(t10 - sm))).flatten()[0], np.argwhere(np.diff(np.sign(t90 - sm))).flatten()[-1]
+        plt.plot([t1, t2], [sm[t1], sm[t2]], 'ro')
+        dt = t2 - t1
+        plt.title(f"Rise time: {dt} ms");
+        plt.savefig(fname + "_RiseTimeIntensity" + channel + ".png", dpi=600)
+        plt.close()
+    
+    # Save to csv
+    df.to_csv(fname + "_RiseTimeIntensity.csv")
+   
+
+        
+#%%
+
+def rise_time_main():
+    matplotlib.use("Agg")
+    client = Client()
+    print(client)
+    webbrowser.open(client.dashboard_link)
+
+    while True:
+        sleep(1)
+        try:
+            for f in listdir("."):
+                name, ext = splitext(f)
+                if ".tif" in ext.lower():
+                    if not exists(f"{name}_RiseTimeIntensity.csv"):
+                        print(f)
+                        estimate_rise_time(f)
+        except PermissionError:
+            pass
+        except UnknownFormatError:
+            pass
+        except KeyboardInterrupt:
+            client.cancel()
+            break
+
+#%%
+def particle_count_main():
     matplotlib.use("Agg")
     client = Client()
     print(client)
@@ -132,5 +201,34 @@ def main():
             break
 
 
+#%%
+
+def count_and_rise():
+    matplotlib.use("Agg")
+    client = Client()
+    print(client)
+    webbrowser.open(client.dashboard_link)
+
+    while True:
+        sleep(1)
+        try:
+            for f in listdir("."):
+                name, ext = splitext(f)
+                if ".tif" in ext.lower():
+                    if not exists(f"{name}_N_particles.csv"):
+                        print(f)
+                        count_particles(f)
+                    if not exists(f"{name}_RiseTimeIntensity.csv"):
+                        print(f)
+                        estimate_rise_time(f)
+        except PermissionError:
+            pass
+        except UnknownFormatError:
+            pass
+        except KeyboardInterrupt:
+            client.cancel()
+            break
+#%%
 if __name__ == "__main__":
-    main()
+    particle_count_main()
+    rise_time_main()
