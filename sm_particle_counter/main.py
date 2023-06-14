@@ -16,13 +16,13 @@ from scipy.signal import savgol_filter
 
 def get_num_channels(data):
     """
-    Return number of channels in smTIRF. If width
-    is twice the height, we have two channels.
+    Return number of channels in smTIRF. We assume that we always
+    work with 2x2 binning
     """
     ensure_array(data)
     h, w = data.shape[-2:]
 
-    if 2 * h == w:
+    if w >= 2 * h and w >= 2048:
         return 2
     return 1
 
@@ -108,50 +108,65 @@ def count_particles(tiff_file):
 
     pd.DataFrame(N_particles).to_csv(fname + "_N_particles.csv")
 
-#%%
+
+# %%
+
 
 def estimate_rise_time(tiff_file):
-    
     fname = splitext(basename(tiff_file))[0]
     image_stack = dask_imread.imread(tiff_file)
 
     channel_intensity = {}
     for channel, img in get_channels(image_stack).items():
         # Outputting channel intensity over time
-        channel_intensity[channel] = img.sum(axis=(1,2)).compute()
-        
+        channel_intensity[channel] = img.mean(axis=(1, 2)).compute()
+
     df = pd.DataFrame(channel_intensity)
-    
-    # Performing rise time calculation 
+
+    # Performing rise time calculation
     for channel in df.columns:
-        
         intensity_data_np = df[channel].to_numpy()
-        half_max = 0.5*(intensity_data_np.min() + intensity_data_np.max())
-        _ = np.where(intensity_data_np > half_max)[0]
-        up, down = _[0], _[-1]
-        
-        front = intensity_data_np[:(up+down)//2]
-        plt.plot(front, alpha = 0.5)    
-        sm = savgol_filter(front, polyorder=3, window_length=31)
-        plt.plot(sm)
-        low, high = np.median(front[:50]), np.median(front[-50:])
-        ten_p = 0.1*(high-low)
-        t10, t90 = low+ten_p, high-ten_p
-        plt.axhline(t10)
-        plt.axhline(t90)
-        t1, t2 = np.argwhere(np.diff(np.sign(t10 - sm))).flatten()[0], np.argwhere(np.diff(np.sign(t90 - sm))).flatten()[-1]
-        plt.plot([t1, t2], [sm[t1], sm[t2]], 'ro')
+        half_max = 0.5 * (intensity_data_np.min() + intensity_data_np.max())
+        peak_idx = np.where(intensity_data_np > half_max)[0]
+        up_idx, down_idx = peak_idx[0], peak_idx[-1]
+
+        front_edge = intensity_data_np[: (up_idx + down_idx) // 2]
+        plt.plot(front_edge, alpha=0.5)
+        N = len(front_edge)
+        window_length = 2 * (N // 20) + 1
+        front_edge_smooth = savgol_filter(
+            front_edge, polyorder=3, window_length=window_length
+        )
+        plt.plot(front_edge_smooth)
+        signal_l, signal_h = np.median(front_edge[: N // 4]), np.median(
+            front_edge[-N // 4 :]
+        )
+        margin = 0.1 * (signal_h - signal_l)
+        thresh_l, thresh_h = signal_l + margin, signal_h - margin
+        plt.axhline(thresh_l, ls="--", c="k")
+        plt.axhline(thresh_h, ls="--", c="k")
+
+        t1, t2 = (
+            np.argwhere(np.diff(np.sign(thresh_l - front_edge_smooth))).flatten()[0],
+            np.argwhere(np.diff(np.sign(thresh_h - front_edge_smooth))).flatten()[-1],
+        )
+
+        plt.plot([t1, t2], [front_edge_smooth[t1], front_edge_smooth[t2]], "ro")
+        plt.xlabel("Frames")
+        plt.ylabel("Intensity, photons")
         dt = t2 - t1
-        plt.title(f"Rise time: {dt} ms");
-        plt.savefig(fname + "_RiseTimeIntensity" + channel + ".png", dpi=600)
+        plt.title(f"Rise time: {dt} frames")
+        plt.savefig(fname + "_RiseTimeIntensity_" + channel + ".png", dpi=600)
         plt.close()
-    
+
+    # TODO: Analyze the falling edge of the signal as well!
+
     # Save to csv
     df.to_csv(fname + "_RiseTimeIntensity.csv")
-   
 
-        
-#%%
+
+# %%
+
 
 def rise_time_main():
     matplotlib.use("Agg")
@@ -164,6 +179,8 @@ def rise_time_main():
         try:
             for f in listdir("."):
                 name, ext = splitext(f)
+                # TODO: change the logic. If CSV file is not there, create it.
+                # If it is there but png is absent, create PNG based on data from CSV
                 if ".tif" in ext.lower():
                     if not exists(f"{name}_RiseTimeIntensity.csv"):
                         print(f)
@@ -176,7 +193,8 @@ def rise_time_main():
             client.cancel()
             break
 
-#%%
+
+# %%
 def particle_count_main():
     matplotlib.use("Agg")
     client = Client()
@@ -201,7 +219,8 @@ def particle_count_main():
             break
 
 
-#%%
+# %%
+
 
 def count_and_rise():
     matplotlib.use("Agg")
@@ -228,7 +247,9 @@ def count_and_rise():
         except KeyboardInterrupt:
             client.cancel()
             break
-#%%
+
+
+# %%
 if __name__ == "__main__":
     particle_count_main()
     rise_time_main()
