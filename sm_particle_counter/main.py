@@ -80,7 +80,7 @@ def segment_particles(layer, threshold):
 
 def count_particles(tiff_file):
     fname = splitext(basename(tiff_file))[0]
-    image_stack = dask_imread.imread(tiff_file)
+    image_stack = dask_imread.imread(tiff_file)[1:]  # drop the first frame, it is usually bad
 
     fig = plt.figure()
 
@@ -114,26 +114,36 @@ def count_particles(tiff_file):
 
 def estimate_rise_time(tiff_file):
     fname = splitext(basename(tiff_file))[0]
-    image_stack = dask_imread.imread(tiff_file)
+    image_stack = dask_imread.imread(tiff_file)[1:]  # drop the first frame, it is usually bad
+
+    # FIXME dirty hack: truncate data. Skip first 100 frames, and use only following 400 frames
+    image_stack = image_stack[100:500]
 
     channel_intensity = {}
     for channel, img in get_channels(image_stack).items():
         # Outputting channel intensity over time
-        channel_intensity[channel] = img.mean(axis=(1, 2)).compute()
+        # FIXME dirty hack: analyze only Cy3
+        if channel == 'Cy3':
+            channel_intensity[channel] = img.mean(axis=(1, 2)).compute()
 
     df = pd.DataFrame(channel_intensity)
+    df.to_csv(fname + "_Intensity.csv")
 
-    # Performing rise time calculation
+    # Rise time calculation
     for channel in df.columns:
         intensity_data_np = df[channel].to_numpy()
+
+        front_edge = intensity_data_np  # most 400 points, see above
+
         half_max = 0.5 * (intensity_data_np.min() + intensity_data_np.max())
         peak_idx = np.where(intensity_data_np > half_max)[0]
         up_idx, down_idx = peak_idx[0], peak_idx[-1]
+        if (up_idx + down_idx) // 2 < 400:
+            front_edge = front_edge[: (up_idx + down_idx) // 2]
 
-        front_edge = intensity_data_np[: (up_idx + down_idx) // 2]
         plt.plot(front_edge, alpha=0.5)
         N = len(front_edge)
-        window_length = 2 * (N // 20) + 1
+        window_length = (2 * (N // 20) + 1) + 10
         front_edge_smooth = savgol_filter(
             front_edge, polyorder=3, window_length=window_length
         )
@@ -148,7 +158,7 @@ def estimate_rise_time(tiff_file):
 
         t1, t2 = (
             np.argwhere(np.diff(np.sign(thresh_l - front_edge_smooth))).flatten()[0],
-            np.argwhere(np.diff(np.sign(thresh_h - front_edge_smooth))).flatten()[-1],
+            np.argwhere(np.diff(np.sign(thresh_h - front_edge_smooth))).flatten()[0],
         )
 
         plt.plot([t1, t2], [front_edge_smooth[t1], front_edge_smooth[t2]], "ro")
@@ -161,8 +171,6 @@ def estimate_rise_time(tiff_file):
 
     # TODO: Analyze the falling edge of the signal as well!
 
-    # Save to csv
-    df.to_csv(fname + "_RiseTimeIntensity.csv")
 
 
 # %%
@@ -182,7 +190,7 @@ def rise_time_main():
                 # TODO: change the logic. If CSV file is not there, create it.
                 # If it is there but png is absent, create PNG based on data from CSV
                 if ".tif" in ext.lower():
-                    if not exists(f"{name}_RiseTimeIntensity.csv"):
+                    if not exists(f"{name}_Intensity.csv"):
                         print(f)
                         estimate_rise_time(f)
         except PermissionError:
@@ -237,7 +245,7 @@ def count_and_rise():
                     if not exists(f"{name}_N_particles.csv"):
                         print(f)
                         count_particles(f)
-                    if not exists(f"{name}_RiseTimeIntensity.csv"):
+                    if not exists(f"{name}_Intensity.csv"):
                         print(f)
                         estimate_rise_time(f)
         except PermissionError:
