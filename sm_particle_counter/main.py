@@ -1,9 +1,8 @@
 import numpy as np
 import pandas as pd
-from scipy.ndimage import maximum_filter
 from dask.distributed import Client
 import webbrowser
-import dask
+from utils import *
 from dask_image import imread as dask_imread
 from os.path import basename, splitext, exists
 from time import sleep
@@ -13,59 +12,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
-
-def get_num_channels(data):
-    """
-    Return number of channels in smTIRF. We assume that we always
-    work with 2x2 binning
-    """
-    ensure_array(data)
-    h, w = data.shape[-2:]
-
-    if w >= 2 * h and w >= 2048:
-        return 2
-    return 1
-
-
-def get_channels(data):
-    """
-    Extract channels from a smTIRF image and return them
-    as a dict object. If width is twice the height, we have
-    two channels, one otherwise.
-    """
-    N = get_num_channels(data)
-    if N == 1:
-        return dict(Cy3=data)
-    elif N == 2:
-        w = data.shape[-1]
-        return dict(Cy3=data[:, :, : w // 2], Cy5=data[:, :, w // 2 :])
-    else:
-        raise NotImplementedError
-
-
-def ensure_array(data, ndim=3):
-    """
-    Verify that data is numpy or dask array with correct number of
-    dimensions, raise ValueError otherwise
-    """
-    if not is_array(data, ndim=[1, 2, 3]):
-        raise ValueError("Provided data must be a dask or numpy array")
-
-    if data.ndim != ndim:
-        raise ValueError("Provided data have incorrect shape")
-
-
-def is_array(data, ndim=[2, 3]):
-    """
-    Check if data is a numpy, zarr or dask image with two or three dimensions.
-    """
-    if not (dask.is_dask_collection(data) or isinstance(data, np.ndarray)):
-        return False
-
-    if data.ndim in ndim:
-        return True
-
-    return False
 
 
 def segment_particles(layer, threshold):
@@ -97,6 +43,7 @@ def count_particles(tiff_file):
 
         # Plot the results
         plt.plot(N_particles[channel], linewidth=0.75, label=channel)
+
 
     plt.legend()
     plt.title(f"{fname}")
@@ -138,6 +85,7 @@ def estimate_rise_time(tiff_file):
         half_max = 0.5 * (intensity_data_np.min() + intensity_data_np.max())
         peak_idx = np.where(intensity_data_np > half_max)[0]
         up_idx, down_idx = peak_idx[0], peak_idx[-1]
+        # Should we just use mean instead??
         if (up_idx + down_idx) // 2 < 400:
             front_edge = front_edge[: (up_idx + down_idx) // 2]
 
