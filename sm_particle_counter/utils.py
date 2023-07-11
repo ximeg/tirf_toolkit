@@ -1,6 +1,10 @@
 import dask
 import numpy as np
 
+from PIL import Image
+from PIL.TiffTags import TAGS
+
+
 
 def n_channels(data):
     """
@@ -15,6 +19,7 @@ def n_channels(data):
 
 
 def Cy3(data):
+    # TODO Should it be TR(), TL(), BL(), BR() instead?
     return channel_slices(data)["Cy3"]
 
 def Cy5(data):

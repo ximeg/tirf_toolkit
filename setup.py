@@ -35,6 +35,8 @@ setup(
         "scipy",
         "bokeh",
         "matplotlib",
+        "pytest",
+        "PIL"
     ],
     license=about["__license__"],
     zip_safe=False,
