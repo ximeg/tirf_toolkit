@@ -36,7 +36,7 @@ setup(
         "bokeh",
         "matplotlib",
         "pytest",
-        "PIL",
+        "Pillow",
         "pims",
         "docopt"
     ],
