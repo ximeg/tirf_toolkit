@@ -67,9 +67,11 @@ def count_particles(tirf_image: TIRFimage, channels=None):
                  ]
 
         # Threshold calculation
-        bg, q25, q75 = np.quantile(subset.compute(), [0.05, 0.25, 0.75])
-        iqr = q75 - q25
-        thresh = bg + 5 * iqr
+        q25, q75, q90 = np.quantile(subset.compute(), [0.25, 0.75, 0.9])
+
+        # Background occupies at least 90% of the area. On top of that,
+        # we add 3x IQRs, which is a pretty conservative metric
+        thresh = q90 + 3*(q75 - q25)
 
         # Create a stack containing one white pixel per each detected particle
         segmented_stack = stack.map_blocks(segment_particles, threshold=thresh)
