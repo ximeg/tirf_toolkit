@@ -57,6 +57,7 @@ def tiff_analyze_intensity(tiff_file, csv_file, channels=None):
 
     if ch:
         df = analyze_intensity(tirf_image, channels=ch)
+        # TODO: add time axis to the data
         df.to_csv(csv_file)
     else:
         print(f"Requested spectral channels {channels} not found. {basename(tiff_file)} contains {tirf_image.channels}\n")
