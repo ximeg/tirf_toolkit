@@ -1,6 +1,6 @@
 import pytest
 from os.path import join
-from sm_particle_counter.TIRF_image import _parse_metadata
+from sm_particle_counter.tirf_image import _parse_metadata
 import numpy as np
 
 

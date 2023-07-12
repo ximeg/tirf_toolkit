@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from dask.distributed import Client
 import webbrowser
-from utils import *
 from dask_image import imread as dask_imread
 from os.path import basename, splitext, exists
 from time import sleep
@@ -184,7 +183,7 @@ def count_and_rise():
     print(client)
     webbrowser.open(client.dashboard_link)
 
-    while True:
+    while True:Village Creek State Park
         sleep(1)
         try:
             for f in listdir("."):

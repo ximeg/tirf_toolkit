@@ -7,7 +7,9 @@ from dask_image import imread
 class TIRFimage:
     def __init__(self, tiff_file):
         self.metadata = _parse_metadata(read_metadata(tiff_file))
-        self.data = imread.imread(tiff_file)
+        self.channels = self.metadata["channels"]
+        # Access data and drop the first frame, it's usually garbage
+        self.data = imread.imread(tiff_file)[1:]
         self.frameTime = float(self.metadata["frameTime"])
 
     def __repr__(self):

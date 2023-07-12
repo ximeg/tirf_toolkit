@@ -36,7 +36,9 @@ setup(
         "bokeh",
         "matplotlib",
         "pytest",
-        "PIL"
+        "PIL",
+        "pims",
+        "docopt"
     ],
     license=about["__license__"],
     zip_safe=False,
