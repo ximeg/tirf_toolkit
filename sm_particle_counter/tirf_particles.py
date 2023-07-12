@@ -6,10 +6,10 @@ in each frame per each spectral channel. It uses Dask for
 parallel computations. The results are written in CSV format.
 A TIFF file is being processed only if a corresponding CSV file
 with the result is missing. The CSV file name is formed by replacing
-the extension of the input TIFF file with "{int_suffix}.csv".
+the extension of the input TIFF file with "{particles_suffix}.csv".
 
 Usage:
-  tirf_intensity [options] [<channel>]...
+  tirf_particles [options] [<channel>]...
 
 You can specify spectral channels to process (one or more of Cy2, Cy3,
 Cy5, and Cy7). By default, all spectral present channels are processed.
