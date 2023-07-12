@@ -8,6 +8,7 @@ class TIRFimage:
     def __init__(self, tiff_file):
         self.metadata = _parse_metadata(read_metadata(tiff_file))
         self.data = imread.imread(tiff_file)
+        self.frameTime = float(self.metadata["frameTime"])
 
     def __repr__(self):
         return self.data.__repr__() + "\n" + \
