@@ -53,10 +53,10 @@ def tiff_analyze_intensity(tiff_file, csv_file, channels=None):
     Saves result in a CSV file.
     """
     tirf_image = TIRFimage(tiff_file)
-    channels = intersection(channels, tirf_image.channels)
+    ch = intersection(channels, tirf_image.channels)
 
-    if channels:
-        df = analyze_intensity(tirf_image, channels=channels)
+    if ch:
+        df = analyze_intensity(tirf_image, channels=ch)
         df.to_csv(csv_file)
     else:
         print(f"Requested spectral channels {channels} not found. {basename(tiff_file)} contains {tirf_image.channels}\n")
