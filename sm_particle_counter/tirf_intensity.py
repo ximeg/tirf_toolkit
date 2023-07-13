@@ -21,15 +21,15 @@ Options:
 Author: {author}, {email}
 Version: {version}
 """
+from .misc import parse_args, cond_run, intersection
+from .tirf_image import TIRFimage
 from dask.distributed import Client
-from misc import parse_args, cond_run, intersection
-from time import sleep
-from pims.api import UnknownFormatError
 from os import listdir
 from os.path import splitext, exists, join, basename
+from pims.api import UnknownFormatError
+from time import sleep
 import pandas as pd
 import webbrowser
-from tirf_image import TIRFimage
 
 
 def analyze_intensity(tirf_image: TIRFimage, channels=None):

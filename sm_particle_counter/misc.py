@@ -1,6 +1,6 @@
-import sm_particle_counter.__version__ as meta
 from docopt import docopt
 from os.path import splitext, exists
+import sm_particle_counter.__version__ as meta
 
 def parse_args(doc):
     """
@@ -40,5 +40,5 @@ def cond_run(infile, suffix, action, *args, **kwargs):
     """
     outfile = splitext(infile)[0] + suffix
     if not exists(outfile):
-        print(f"Processing {infile}.")
+        print(f"Processing {infile}")
         return action(infile, outfile, *args, **kwargs)

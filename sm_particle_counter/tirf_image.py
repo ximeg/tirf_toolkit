@@ -1,7 +1,7 @@
-import re
 from PIL import Image
-import numpy as np
 from dask_image import imread
+import numpy as np
+import re
 
 
 class TIRFimage:

@@ -22,17 +22,17 @@ Options:
 Author: {author}, {email}
 Version: {version}
 """
+from .misc import parse_args, cond_run, intersection
+from .tirf_image import TIRFimage
 from dask.distributed import Client
-from misc import parse_args, cond_run, intersection
-from time import sleep
-from pims.api import UnknownFormatError
 from os import listdir
 from os.path import splitext, exists, join, basename
+from pims.api import UnknownFormatError
+from scipy.ndimage import maximum_filter
+from time import sleep
+import numpy as np
 import pandas as pd
 import webbrowser
-from tirf_image import TIRFimage
-import numpy as np
-from scipy.ndimage import maximum_filter
 
 
 def segment_particles(layer, threshold):
