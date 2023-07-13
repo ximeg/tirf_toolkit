@@ -21,8 +21,9 @@ Options:
 Author: {author}, {email}
 Version: {version}
 """
-from .misc import parse_args, cond_run, intersection
-from .tirf_image import TIRFimage
+from misc import parse_args, cond_run, intersection
+from tirf_image import TIRFimage
+
 from dask.distributed import Client
 from os import listdir
 from os.path import splitext, exists, join, basename
@@ -57,12 +58,9 @@ def tiff_analyze_intensity(tiff_file, csv_file, channels=None):
 
     if ch:
         df = analyze_intensity(tirf_image, channels=ch)
-        # TODO: add time axis to the data
-        df.to_csv(csv_file)
-    else:
-        print(f"Requested spectral channels {channels} not found. {basename(tiff_file)} contains {tirf_image.channels}\n")
-        with open(csv_file, 'w') as fp:
-            pass
+        df.insert(loc=0, column='time', value=df.index*tirf_image.frameTime)
+        df.to_csv(csv_file, float_format='% 12.3f', index_label='frame')
+
 
 def main():
     """
