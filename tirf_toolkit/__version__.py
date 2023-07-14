@@ -4,7 +4,7 @@ __version__.py
 Information about the current version of package
 """
 
-__title__ = "sm_particle_counter"
+__title__ = "tirf_toolkit"
 __description__ = (
     "Roman's toolkit to analyze TIFF stacks from a pTIRF instrument"
 )

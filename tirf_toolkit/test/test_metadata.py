@@ -1,6 +1,6 @@
 import pytest
 from os.path import join
-from sm_particle_counter.tirf_image import _parse_metadata
+from tirf_toolkit.tirf_image import _parse_metadata
 import numpy as np
 
 
@@ -51,7 +51,7 @@ def parse_metadata_params(request):
 
 def test_parse_metadata(parse_metadata_params):
     fn, result = parse_metadata_params
-    meta_text = open(join("sm_particle_counter", "test", "data", fn)).read()
+    meta_text = open(join("tirf_toolkit", "test", "data", fn)).read()
 
     metadata = _parse_metadata(meta_text)
     assert type(metadata) is dict

@@ -1,6 +1,6 @@
 from docopt import docopt
 from os.path import splitext, exists, basename
-import sm_particle_counter.__version__ as meta
+import __version__ as meta
 
 def parse_args(doc):
     """

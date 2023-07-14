@@ -3,10 +3,10 @@
 import os
 from setuptools import setup
 
-# get key package details from sm_particle_counter/__version__.py
+# get key package details from __version__.py
 about = {}  # type: ignore
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, "sm_particle_counter", "__version__.py")) as f:
+with open(os.path.join(here, "tirf_toolkit", "__version__.py")) as f:
     exec(f.read(), about)
 
 # load the README file and use it as the long_description for PyPI
@@ -24,14 +24,14 @@ setup(
     author=about["__author__"],
     author_email=about["__author_email__"],
     url=about["__url__"],
-    packages=["sm_particle_counter"],
+    packages=["tirf_toolkit"],
     include_package_data=True,
     python_requires=">=3.9",
     install_requires=[
         "numpy",
         "pandas",
         "dask_image",
-        "dask[distributed]",
+        "dask[distributed]>=2023.5.1",
         "scipy",
         "bokeh",
         "matplotlib",
@@ -43,7 +43,7 @@ setup(
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["tirf=sm_particle_counter.main:main"],
+        "console_scripts": ["tirf=tirf_toolkit.main:main"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.9",
