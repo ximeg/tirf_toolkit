@@ -1,263 +1,111 @@
-import numpy as np
+"""Roman's toolkit to analyze pTIRF data sets from FlashGordon.
+
+This script monitors a given directory for new files that satisfy a
+given pattern, processes them, and saves results. If the result
+file already exists, the input file is skipped.
+
+Supported operations include counting of particles in TIRF stack,
+analysis of intensity, and analysis of rise/fall time of fluidic injections.
+
+For TIFF images, it uses Dask for parallel computations.
+
+Usage:
+  tirf particles      [options] [<channel>]...
+  tirf particles_plot [options] [<channel>]...
+  tirf intensity      [options] [<channel>]...
+  tirf injection_plot [options] [<channel>]...
+  tirf injection_stat [options] [<channel>]...
+
+You can specify spectral channels to process (one or more of Cy2, Cy3,
+Cy5, and Cy7). By default, all spectral present channels are processed.
+
+Options:
+  -p --pattern=PTRN   Pattern of file names to process, by default everything in the current folder.
+{common_opts}
+
+Author: {author}, {email}
+Version: {version}
+"""
+
+from daemon import start_daemon
+from fluidics import analyze_csv, show_dataset
+from intensity import tiff_analyze_intensity
+from misc import parse_args, intersection, chop_filename
+from particles import tiff_count_particles
+
+from glob import glob
+from matplotlib import pyplot as plt
+from os.path import splitext, basename, dirname, join
 import pandas as pd
-from scipy.ndimage import maximum_filter
-from dask.distributed import Client
-import webbrowser
-import dask
-from dask_image import imread as dask_imread
-from os.path import basename, splitext, exists
-from time import sleep
-from os import listdir
-from pims.api import UnknownFormatError
-import matplotlib
-import matplotlib.pyplot as plt
-from scipy.signal import savgol_filter
 
 
-def get_num_channels(data):
-    """
-    Return number of channels in smTIRF. We assume that we always
-    work with 2x2 binning
-    """
-    ensure_array(data)
-    h, w = data.shape[-2:]
+def main():
+    arguments = parse_args(__doc__)
+    if arguments["particles"]:
+        if not arguments["--pattern"]:
+            arguments["--pattern"] = "./*.tif"
+        start_daemon("_N_particles.csv", tiff_count_particles, arguments=arguments, dask_cluster=True)
 
-    if w >= 2 * h and w >= 2048:
-        return 2
-    return 1
+    if arguments["particles_plot"]:
+        if not arguments["--pattern"]:
+            arguments["--pattern"] = "./*_N_particles.csv"
 
+        def plot_csv(fn, *args, **kwargs):
+            df = pd.read_csv(fn, index_col='time')
+            # First frame is usually garbage, drop it
+            df = df.iloc[1:]
 
-def get_channels(data):
-    """
-    Extract channels from a smTIRF image and return them
-    as a dict object. If width is twice the height, we have
-    two channels, one otherwise.
-    """
-    N = get_num_channels(data)
-    if N == 1:
-        return dict(Cy3=data)
-    elif N == 2:
-        w = data.shape[-1]
-        return dict(Cy3=data[:, :, : w // 2], Cy5=data[:, :, w // 2 :])
-    else:
-        raise NotImplementedError
+            # convert s to ms
+            df.index *= 1000
 
+            ch = intersection(arguments["<channel>"], df.filter(regex=("Cy?")).columns)
 
-def ensure_array(data, ndim=3):
-    """
-    Verify that data is numpy or dask array with correct number of
-    dimensions, raise ValueError otherwise
-    """
-    if not is_array(data, ndim=[1, 2, 3]):
-        raise ValueError("Provided data must be a dask or numpy array")
+            ax = plt.figure(figsize=(7, 4)).gca()
 
-    if data.ndim != ndim:
-        raise ValueError("Provided data have incorrect shape")
+            for channel in ch:
+                plt.plot(df[channel], label=channel)
 
+            plt.title(splitext(basename(fn))[0])
+            plt.legend()
+            plt.savefig(splitext(fn)[0] + ".png", dpi=200)
 
-def is_array(data, ndim=[2, 3]):
-    """
-    Check if data is a numpy, zarr or dask image with two or three dimensions.
-    """
-    if not (dask.is_dask_collection(data) or isinstance(data, np.ndarray)):
-        return False
+        start_daemon(".png", plot_csv, arguments=arguments, dask_cluster=False)
 
-    if data.ndim in ndim:
-        return True
+    if arguments["intensity"]:
+        if not arguments["--pattern"]:
+            arguments["--pattern"] = "./*.tif"
+        start_daemon("_intensity.csv", tiff_analyze_intensity, arguments=arguments, dask_cluster=True)
 
-    return False
+    if arguments["injection_plot"]:
+        if not arguments["--pattern"]:
+            arguments["--pattern"] = "./*_intensity.csv"
 
+        def plot_csv(fn, *args, **kwargs):
+            df, channel, front, back = analyze_csv(fn)
+            ax = plt.figure(figsize=(7, 4)).gca()
+            show_dataset(df, channel, front, back, ax, offset=front.a)
+            plt.savefig(splitext(fn)[0] + ".png", dpi=200)
 
-def segment_particles(layer, threshold):
-    """
-    Threshold the image to select bright particles and apply maximum filter
-    to erode background around them, leaving only a single white pixel per
-    particle.
-    """
-    masked_layer = layer * (layer > threshold)
-    return maximum_filter(layer, size=3) == masked_layer
+        start_daemon(".png", plot_csv, arguments=arguments, dask_cluster=False)
 
+    if arguments["injection_stat"]:
+        if not arguments["--pattern"]:
+            arguments["--pattern"] = "./*_intensity.csv"
 
-def count_particles(tiff_file):
-    fname = splitext(basename(tiff_file))[0]
-    image_stack = dask_imread.imread(tiff_file)[1:]  # drop the first frame, it is usually bad
+        data = []
+        for fn in glob(arguments["--pattern"]):
+            df, channel, front, back = analyze_csv(fn)
+            data.append(dict(
+                filename = chop_filename(fn),
+                front_start = front.a,
+                front_tau = front.tau,
+                back_start = back.a,
+                back_tau = back.tau,
+                amp = front.ptp,
+            ))
 
-    fig = plt.figure()
-
-    N_particles = {}
-    for channel, img in get_channels(image_stack).items():
-        # Threshold calculation
-        bg, q25, q75 = np.quantile(img[0].compute(), [0.05, 0.25, 0.75])
-        iqr = q75 - q25
-        thresh = bg + 5 * iqr
-
-        # Segmentation of particles
-        segmented_stack = img.map_blocks(segment_particles, threshold=thresh).compute()
-        N_particles[channel] = segmented_stack.sum(axis=(1, 2))
-
-        # Plot the results
-        plt.plot(N_particles[channel], linewidth=0.75, label=channel)
-
-    plt.legend()
-    plt.title(f"{fname}")
-    plt.xlabel("Frame number")
-    plt.ylabel("Number of particles")
-    fig.patch.set_alpha(1.0)
-    plt.savefig(fname + "_N_particles.png", dpi=600, transparent=False)
-    plt.close()
-
-    pd.DataFrame(N_particles).to_csv(fname + "_N_particles.csv")
+        pd.DataFrame.from_dict(data).to_csv(join(dirname(fn), "injection_stats.csv"), index=False, float_format='% 12.3f')
 
 
-# %%
-
-
-def estimate_rise_time(tiff_file):
-    fname = splitext(basename(tiff_file))[0]
-    image_stack = dask_imread.imread(tiff_file)[1:]  # drop the first frame, it is usually bad
-
-    # FIXME dirty hack: truncate data. Skip first 100 frames, and use only following 400 frames
-    image_stack = image_stack[100:500]
-
-    channel_intensity = {}
-    for channel, img in get_channels(image_stack).items():
-        # Outputting channel intensity over time
-        # FIXME dirty hack: analyze only Cy3
-        if channel == 'Cy3':
-            channel_intensity[channel] = img.mean(axis=(1, 2)).compute()
-
-    df = pd.DataFrame(channel_intensity)
-    df.to_csv(fname + "_Intensity.csv")
-
-    # Rise time calculation
-    for channel in df.columns:
-        intensity_data_np = df[channel].to_numpy()
-
-        front_edge = intensity_data_np  # most 400 points, see above
-
-        half_max = 0.5 * (intensity_data_np.min() + intensity_data_np.max())
-        peak_idx = np.where(intensity_data_np > half_max)[0]
-        up_idx, down_idx = peak_idx[0], peak_idx[-1]
-        if (up_idx + down_idx) // 2 < 400:
-            front_edge = front_edge[: (up_idx + down_idx) // 2]
-
-        plt.plot(front_edge, alpha=0.5)
-        N = len(front_edge)
-        window_length = (2 * (N // 20) + 1) + 10
-        front_edge_smooth = savgol_filter(
-            front_edge, polyorder=3, window_length=window_length
-        )
-        plt.plot(front_edge_smooth)
-        signal_l, signal_h = np.median(front_edge[: N // 4]), np.median(
-            front_edge[-N // 4 :]
-        )
-        margin = 0.1 * (signal_h - signal_l)
-        thresh_l, thresh_h = signal_l + margin, signal_h - margin
-        plt.axhline(thresh_l, ls="--", c="k")
-        plt.axhline(thresh_h, ls="--", c="k")
-
-        t1, t2 = (
-            np.argwhere(np.diff(np.sign(thresh_l - front_edge_smooth))).flatten()[0],
-            np.argwhere(np.diff(np.sign(thresh_h - front_edge_smooth))).flatten()[0],
-        )
-
-        plt.plot([t1, t2], [front_edge_smooth[t1], front_edge_smooth[t2]], "ro")
-        plt.xlabel("Frames")
-        plt.ylabel("Intensity, photons")
-        dt = t2 - t1
-        plt.title(f"Rise time: {dt} frames")
-        plt.savefig(fname + "_RiseTimeIntensity_" + channel + ".png", dpi=600)
-        plt.close()
-
-    # TODO: Analyze the falling edge of the signal as well!
-
-
-
-# %%
-
-
-def rise_time_main():
-    matplotlib.use("Agg")
-    client = Client()
-    print(client)
-    webbrowser.open(client.dashboard_link)
-
-    while True:
-        sleep(1)
-        try:
-            for f in listdir("."):
-                name, ext = splitext(f)
-                # TODO: change the logic. If CSV file is not there, create it.
-                # If it is there but png is absent, create PNG based on data from CSV
-                if ".tif" in ext.lower():
-                    if not exists(f"{name}_Intensity.csv"):
-                        print(f)
-                        estimate_rise_time(f)
-        except PermissionError:
-            pass
-        except UnknownFormatError:
-            pass
-        except KeyboardInterrupt:
-            client.cancel()
-            break
-
-
-# %%
-def particle_count_main():
-    matplotlib.use("Agg")
-    client = Client()
-    print(client)
-    webbrowser.open(client.dashboard_link)
-
-    while True:
-        sleep(1)
-        try:
-            for f in listdir("."):
-                name, ext = splitext(f)
-                if ".tif" in ext.lower():
-                    if not exists(f"{name}_N_particles.csv"):
-                        print(f)
-                        count_particles(f)
-        except PermissionError:
-            pass
-        except UnknownFormatError:
-            pass
-        except KeyboardInterrupt:
-            client.cancel()
-            break
-
-
-# %%
-
-
-def count_and_rise():
-    matplotlib.use("Agg")
-    client = Client()
-    print(client)
-    webbrowser.open(client.dashboard_link)
-
-    while True:
-        sleep(1)
-        try:
-            for f in listdir("."):
-                name, ext = splitext(f)
-                if ".tif" in ext.lower():
-                    if not exists(f"{name}_N_particles.csv"):
-                        print(f)
-                        count_particles(f)
-                    if not exists(f"{name}_Intensity.csv"):
-                        print(f)
-                        estimate_rise_time(f)
-        except PermissionError:
-            pass
-        except UnknownFormatError:
-            pass
-        except KeyboardInterrupt:
-            client.cancel()
-            break
-
-
-# %%
 if __name__ == "__main__":
-    particle_count_main()
-    rise_time_main()
+    main()

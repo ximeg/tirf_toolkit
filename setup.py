@@ -26,7 +26,7 @@ setup(
     url=about["__url__"],
     packages=["sm_particle_counter"],
     include_package_data=True,
-    python_requires=">=3.7",
+    python_requires=">=3.9",
     install_requires=[
         "numpy",
         "pandas",
@@ -35,15 +35,17 @@ setup(
         "scipy",
         "bokeh",
         "matplotlib",
+        "pytest",
+        "Pillow",
+        "pims",
+        "docopt"
     ],
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["sm_particle_counter=sm_particle_counter.main:particle_count_main", 
-                            "estimate_rise_time=sm_particle_counter.main:rise_time_main",
-                            "sm_counter_all=sm_particle_counter.main:count_and_rise"],
+        "console_scripts": ["tirf=sm_particle_counter.main:main"],
     },
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.9",
     ],
 )
