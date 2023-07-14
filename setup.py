@@ -43,7 +43,7 @@ setup(
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["tirf=sm_particle_counter.daemon:main"],
+        "console_scripts": ["tirf=sm_particle_counter.main:main"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.9",
