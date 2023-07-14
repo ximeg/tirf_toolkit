@@ -1,5 +1,5 @@
 from docopt import docopt
-from os.path import splitext, exists
+from os.path import splitext, exists, basename
 import sm_particle_counter.__version__ as meta
 
 def parse_args(doc):
@@ -14,8 +14,6 @@ def parse_args(doc):
         author=meta.__author__,
         email=meta.__author_email__,
         common_opts=meta.__common_opts__,
-        int_suffix=meta.__int_suffix__,
-        particles_suffix=meta.__particles_suffix__,
     )
     arguments = docopt(
             version=meta.__version__,
@@ -42,3 +40,7 @@ def cond_run(infile, suffix, action, *args, **kwargs):
     if not exists(outfile):
         print(f"Processing {infile}")
         return action(infile, outfile, *args, **kwargs)
+
+def chop_filename(fn):
+    _ = splitext(basename(fn))[0]
+    return _[:_.find("_intensity")]

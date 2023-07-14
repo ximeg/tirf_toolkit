@@ -43,9 +43,7 @@ setup(
     license=about["__license__"],
     zip_safe=False,
     entry_points={
-        "console_scripts": ["tirf_particles=sm_particle_counter.tirf_particles:main",
-                            "estimate_rise_time=sm_particle_counter.main:rise_time_main",
-                            "tirf_intensity=sm_particle_counter.tirf_intensity:main"],
+        "console_scripts": ["tirf=sm_particle_counter.daemon:main"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.9",
