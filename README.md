@@ -39,7 +39,7 @@ go to the root folder of this package (the one with `setup.py`), and from there
 create a new virtual environment...
 
 ```
-conda create --name ttk -c conda-forge
+conda create --name ttk pip
 conda activate ttk
 ```
 
