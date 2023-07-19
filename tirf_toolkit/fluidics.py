@@ -135,10 +135,13 @@ def show_dataset(df, channel, front, back, ax, offset=0):
     ax.set_ylabel("Photon count")
 
 
-def analyze_csv(fn):
+def analyze_csv(fn, n_frames=0, **kwargs):
     df = pd.read_csv(fn, index_col='time')
     # First frame is usually garbage, drop it
     df = df.iloc[1:]
+
+    if n_frames:
+        df = df.iloc[:n_frames]
 
     # convert s to ms
     df.index *= 1000
@@ -147,7 +150,6 @@ def analyze_csv(fn):
 
 def analyze_df(df):
     # What channel contains the strongest signal?
-
     channel = df.filter(regex=("Cy?")).apply(np.ptp, axis=0).idxmax()
 
     # Find front and back edges
