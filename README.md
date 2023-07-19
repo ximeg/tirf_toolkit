@@ -11,22 +11,21 @@ For TIFF images, it uses Dask for parallel computations.
 
 Usage:
 ```
-  tirf particles      [options] [<channel>]...
-  tirf particles_plot [options] [<channel>]...
-  tirf intensity      [options] [<channel>]...
-  tirf injection_plot [options] [<channel>]...
-  tirf injection_stat [options] [<channel>]...
+  tirf particles       [options] [<channels>]...
+  tirf particles_plot  [options] [<channels>]...
+  tirf intensity       [options] [<channels>]...
+  tirf injection_plot  [options] [<channels>]...
+  tirf injection_stats [options] [<channels>]...
 ```
 You can specify spectral channels to process (one or more of Cy2, Cy3,
 Cy5, and Cy7). By default, all spectral present channels are processed.
 
 Options:
 ```
-    -p --pattern=PTRN   Pattern of file names to process, by default everything in the current folder.
-                        Depending on the command, it will process only TIF or CSV files, unless custom
-                        pattern is provided.
-    -s --status         Open Dask distributed dashboard to monitor status of the computations
-    -h --help           Show help message
+  -p --pattern=PTRN    Pattern for input file names, without extension [default: *]
+  -n --n_frames=N      Maximum number of data points to process; zero means no limit [default: 0].
+  -s --status          Open Dask dashboard to see the status of computing
+  -h --help           Show help message
 ```
 
 
@@ -39,7 +38,7 @@ go to the root folder of this package (the one with `setup.py`), and from there
 create a new virtual environment...
 
 ```
-conda create --name ttk -c conda-forge
+conda create --name ttk pip
 conda activate ttk
 ```
 

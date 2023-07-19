@@ -13,14 +13,19 @@ def parse_args(doc):
         version=meta.__version__,
         author=meta.__author__,
         email=meta.__author_email__,
-        common_opts=meta.__common_opts__,
     )
-    arguments = docopt(
+    kwargs = docopt(
             version=meta.__version__,
             doc=doc.format(**pkg_info)
-    )
+    ) | pkg_info
 
-    return arguments | pkg_info
+    # Remove special symbols from kwargs
+    kwargs = {k.replace("--", "").replace("<", "").replace(">", ""): v for k, v in kwargs.items()}
+
+    # Convert numeric options to numbers
+    kwargs["n_frames"] = int(kwargs["n_frames"])
+
+    return kwargs
 
 
 def intersection(requested, available):

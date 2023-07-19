@@ -18,12 +18,16 @@ def analyze_intensity(tirf_image: TIRFimage, channels=None):
     return pd.DataFrame.from_dict(ch_int)
 
 
-def tiff_analyze_intensity(tiff_file, csv_file, channels=None):
+def tiff_analyze_intensity(tiff_file, csv_file, channels=None, n_frames=0, **kwargs):
     """
     Measure average intensity of each frame in each spectral channel of a TIFF file.
     Saves result in a CSV file.
     """
     tirf_image = TIRFimage(tiff_file)
+
+    if n_frames:
+        tirf_image.data = tirf_image.data[:n_frames]
+
     ch = intersection(channels, tirf_image.channels)
 
     if ch:

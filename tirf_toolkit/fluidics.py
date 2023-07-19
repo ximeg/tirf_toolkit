@@ -131,14 +131,19 @@ def show_dataset(df, channel, front, back, ax, offset=0):
 
     show_transition(front, "darkgreen", ha="right")
     show_transition(back, "navy", ha="left")
+    duration = (back.a + back.tau / 2) - (front.a + front.tau / 2)
+    ax.text((front.b + back.a)/2, front.half, f"{duration:.0f} ms", ha="center")
     ax.set_xlabel("Time / ms")
-    ax.set_ylabel("Photon count")
+    ax.set_ylabel("CMOS signal")
 
 
-def analyze_csv(fn):
+def analyze_csv(fn, n_frames=0, **kwargs):
     df = pd.read_csv(fn, index_col='time')
     # First frame is usually garbage, drop it
     df = df.iloc[1:]
+
+    if n_frames:
+        df = df.iloc[:n_frames]
 
     # convert s to ms
     df.index *= 1000
@@ -147,7 +152,6 @@ def analyze_csv(fn):
 
 def analyze_df(df):
     # What channel contains the strongest signal?
-
     channel = df.filter(regex=("Cy?")).apply(np.ptp, axis=0).idxmax()
 
     # Find front and back edges
@@ -155,9 +159,9 @@ def analyze_df(df):
 
     # Smooth signal with savgol_filter. Window length is proportional to peak FWHM
     window_length = 2*(len(df[df.peak])//10) + 1
-    df[channel+"s"] = savgol_filter(df[channel], window_length, 3)
+    df[channel + "s"] = savgol_filter(df[channel], window_length, 3)
 
     # Analyze front and back transitions
-    front = analyze_transition(df.Cy3s[df.front])
-    back = analyze_transition(df.Cy3s[df.back])
+    front = analyze_transition(df[channel + "s"][df.front])
+    back = analyze_transition(df[channel + "s"][df.back])
     return df, channel, front, back

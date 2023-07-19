@@ -1,4 +1,4 @@
-"""Roman's toolkit to analyze pTIRF data sets from FlashGordon.
+"""Roman's toolkit to analyze pTIRF datasets from FlashGordon.
 
 This script monitors a given directory for new files that satisfy a
 given pattern, processes them, and saves results. If the result
@@ -10,18 +10,21 @@ analysis of intensity, and analysis of rise/fall time of fluidic injections.
 For TIFF images, it uses Dask for parallel computations.
 
 Usage:
-  tirf particles      [options] [<channel>]...
-  tirf particles_plot [options] [<channel>]...
-  tirf intensity      [options] [<channel>]...
-  tirf injection_plot [options] [<channel>]...
-  tirf injection_stat [options] [<channel>]...
+  tirf particles       [options] [<channels>]...
+  tirf particles_plot  [options] [<channels>]...
+  tirf intensity       [options] [<channels>]...
+  tirf injection_plot  [options] [<channels>]...
+  tirf injection_stats [options] [<channels>]...
 
 You can specify spectral channels to process (one or more of Cy2, Cy3,
 Cy5, and Cy7). By default, all spectral present channels are processed.
 
 Options:
-  -p --pattern=PTRN   Pattern of file names to process, by default everything in the current folder.
-{common_opts}
+  -p --pattern=PTRN    Pattern for input file names, without extension [default: *]
+  -n --n_frames=N      Maximum number of data points to process; zero means no limit [default: 0].
+  -s --status          Open Dask dashboard to see the status of computing
+  -h --help            Show this screen.
+  -v --version         Show version.
 
 Author: {author}, {email}
 Version: {version}
@@ -40,60 +43,63 @@ import pandas as pd
 
 
 def main():
-    arguments = parse_args(__doc__)
-    if arguments["particles"]:
-        if not arguments["--pattern"]:
-            arguments["--pattern"] = "./*.tif"
-        start_daemon("_N_particles.csv", tiff_count_particles, arguments=arguments, dask_cluster=True)
+    kwargs = parse_args(__doc__)
 
-    if arguments["particles_plot"]:
-        if not arguments["--pattern"]:
-            arguments["--pattern"] = "./*_N_particles.csv"
+    if kwargs["particles"]:
+        kwargs["pattern"] += ".tif"
+        start_daemon("_N_particles.csv", tiff_count_particles, dask_cluster=True, **kwargs)
 
-        def plot_csv(fn, *args, **kwargs):
+    if kwargs["particles_plot"]:
+
+        kwargs["pattern"] += "_N_particles.csv"
+
+        def plot_csv(fn, outfile, n_frames=0, **kwargs):
             df = pd.read_csv(fn, index_col='time')
             # First frame is usually garbage, drop it
             df = df.iloc[1:]
 
+            if n_frames:
+                df = df.iloc[:n_frames]
+
             # convert s to ms
             df.index *= 1000
 
-            ch = intersection(arguments["<channel>"], df.filter(regex=("Cy?")).columns)
+            ch = intersection(kwargs["channels"], df.filter(regex="Cy?").columns)
 
-            ax = plt.figure(figsize=(7, 4)).gca()
+            plt.figure(figsize=(7, 4))
 
             for channel in ch:
                 plt.plot(df[channel], label=channel)
 
             plt.title(splitext(basename(fn))[0])
             plt.legend()
-            plt.savefig(splitext(fn)[0] + ".png", dpi=200)
+            plt.xlabel("time / ms")
+            plt.ylabel("Number of particles")
+            plt.savefig(outfile, dpi=200)
 
-        start_daemon(".png", plot_csv, arguments=arguments, dask_cluster=False)
+        start_daemon(".png", plot_csv, **kwargs)
 
-    if arguments["intensity"]:
-        if not arguments["--pattern"]:
-            arguments["--pattern"] = "./*.tif"
-        start_daemon("_intensity.csv", tiff_analyze_intensity, arguments=arguments, dask_cluster=True)
+    if kwargs["intensity"]:
+        kwargs["pattern"] += ".tif"
+        start_daemon("_intensity.csv", tiff_analyze_intensity, dask_cluster=True, **kwargs)
 
-    if arguments["injection_plot"]:
-        if not arguments["--pattern"]:
-            arguments["--pattern"] = "./*_intensity.csv"
+    if kwargs["injection_plot"]:
+        kwargs["pattern"] += "_intensity.csv"
 
-        def plot_csv(fn, *args, **kwargs):
-            df, channel, front, back = analyze_csv(fn)
+        def plot_csv(fn, outfile, **kwargs):
+            df, channel, front, back = analyze_csv(fn, **kwargs)
             ax = plt.figure(figsize=(7, 4)).gca()
             show_dataset(df, channel, front, back, ax, offset=front.a)
-            plt.savefig(splitext(fn)[0] + ".png", dpi=200)
+            plt.title(chop_filename(fn))
+            plt.savefig(outfile, dpi=200)
 
-        start_daemon(".png", plot_csv, arguments=arguments, dask_cluster=False)
+        start_daemon(".png", plot_csv, **kwargs)
 
-    if arguments["injection_stat"]:
-        if not arguments["--pattern"]:
-            arguments["--pattern"] = "./*_intensity.csv"
+    if kwargs["injection_stats"]:
+        kwargs["pattern"] += "_intensity.csv"
 
         data = []
-        for fn in glob(arguments["--pattern"]):
+        for fn in glob(kwargs["pattern"]):
             df, channel, front, back = analyze_csv(fn)
             data.append(dict(
                 filename = chop_filename(fn),
@@ -102,6 +108,7 @@ def main():
                 back_start = back.a,
                 back_tau = back.tau,
                 amp = front.ptp,
+                duration = (back.a + back.tau / 2) - (front.a + front.tau / 2),
             ))
 
         pd.DataFrame.from_dict(data).to_csv(join(dirname(fn), "injection_stats.csv"), index=False, float_format='% 12.3f')
