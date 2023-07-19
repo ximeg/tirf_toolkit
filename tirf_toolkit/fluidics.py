@@ -155,9 +155,9 @@ def analyze_df(df):
 
     # Smooth signal with savgol_filter. Window length is proportional to peak FWHM
     window_length = 2*(len(df[df.peak])//10) + 1
-    df[channel+"s"] = savgol_filter(df[channel], window_length, 3)
+    df[channel + "s"] = savgol_filter(df[channel], window_length, 3)
 
     # Analyze front and back transitions
-    front = analyze_transition(df.Cy3s[df.front])
-    back = analyze_transition(df.Cy3s[df.back])
+    front = analyze_transition(df[channel + "s"][df.front])
+    back = analyze_transition(df[channel + "s"][df.back])
     return df, channel, front, back
