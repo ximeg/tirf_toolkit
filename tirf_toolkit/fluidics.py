@@ -131,8 +131,9 @@ def show_dataset(df, channel, front, back, ax, offset=0):
 
     show_transition(front, "darkgreen", ha="right")
     show_transition(back, "navy", ha="left")
+    ax.text((front.b + back.a)/2, front.half, f"{back.a - front.b:.0f} ms", ha="center")
     ax.set_xlabel("Time / ms")
-    ax.set_ylabel("Photon count")
+    ax.set_ylabel("CMOS signal")
 
 
 def analyze_csv(fn, n_frames=0, **kwargs):

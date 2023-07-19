@@ -73,7 +73,9 @@ def main():
 
             plt.title(splitext(basename(fn))[0])
             plt.legend()
-            plt.savefig(splitext(fn)[0] + ".png", dpi=200)
+            plt.xlabel("time / ms")
+            plt.ylabel("Number of particles")
+            plt.savefig(outfile, dpi=200)
 
         start_daemon(".png", plot_csv, **kwargs)
 
