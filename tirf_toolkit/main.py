@@ -108,6 +108,7 @@ def main():
                 back_start = back.a,
                 back_tau = back.tau,
                 amp = front.ptp,
+                duration = (back.a + back.tau / 2) - (front.a + front.tau / 2),
             ))
 
         pd.DataFrame.from_dict(data).to_csv(join(dirname(fn), "injection_stats.csv"), index=False, float_format='% 12.3f')
