@@ -157,8 +157,12 @@ def analyze_df(df):
     # Find front and back edges
     df = get_edges(df, channel=channel)
 
-    # Smooth signal with savgol_filter. Window length is proportional to peak FWHM
-    window_length = 2*(len(df[df.peak])//10) + 1
+    # Smooth signal with savgol_filter. Window length is proportional to FWHM of the peak or the
+    # length of the dataset.
+    window_length = 2 * min(len(df[df.peak]) // 15, len(df) // 50) + 1
+    # window_length is at least 5 data points long
+    window_length = max(window_length, 5)
+
     df[channel + "s"] = savgol_filter(df[channel], window_length, 3)
 
     # Analyze front and back transitions
