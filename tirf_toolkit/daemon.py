@@ -5,6 +5,7 @@ from time import sleep
 
 from dask.distributed import Client
 from pims import UnknownFormatError
+from pandas.errors import EmptyDataError
 
 from misc import cond_run
 
@@ -28,10 +29,12 @@ def start_daemon(output_suffix, func, dask_cluster=False, **kwargs):
                     cond_run(f, output_suffix, func, **kwargs)
 
             except PermissionError:
-                pass
+                print("Don't have permissions to open %f" % f)
             except UnknownFormatError:
-                pass
+                print("Unknown format of file %f" % f)
             except KeyboardInterrupt:
                 break
+            except EmptyDataError:
+                print("No data found in %f" % f)
             except Exception as e:
                 print(f"Could not process file {f}, error is {repr(e)}")

@@ -82,7 +82,10 @@ class Transition():
 
 def analyze_transition(smooth_edge : pd.Series, margin=0.1):
     # Find midpoint
-    x0 = where_eq(smooth_edge, 0.5*(smooth_edge.min()+smooth_edge.max()))
+    try:
+        x0 = where_eq(smooth_edge, 0.5*(smooth_edge.min()+smooth_edge.max()))
+    except IndexError:
+        return None
 
     # split into left and right
     left = smooth_edge.loc[:x0]
@@ -100,39 +103,49 @@ def analyze_transition(smooth_edge : pd.Series, margin=0.1):
     lt = ls + m if up else ls - m
     rt = rs - m if up else rs + m
 
-    t = Transition(
-        a = where_eq(left, lt, first=False),
-        b = where_eq(right, rt, first=True),
-        start = smooth_edge.index.min(),
-        end = smooth_edge.index.max(),
-        steady_low = min(ls, rs),
-        steady_high = max(ls, rs),
-        thresh_low = min(lt, rt),
-        thresh_high = max(lt, rt),
-    )
-    return t
+    try:
+        t = Transition(
+            a = where_eq(left, lt, first=False),
+            b = where_eq(right, rt, first=True),
+            start = smooth_edge.index.min(),
+            end = smooth_edge.index.max(),
+            steady_low = min(ls, rs),
+            steady_high = max(ls, rs),
+            thresh_low = min(lt, rt),
+            thresh_high = max(lt, rt),
+        )
+        return t
+    except IndexError:  # No transition detected
+        return None
 
 
 def show_dataset(df, channel, front, back, ax, offset=0):
-    d = get_edges(df, channel)
+    if front and back:
+        d = get_edges(df, channel)
 
-    if offset:
-        d.index -= offset
-        front.offset = offset
-        back.offset = offset
+        if offset:
+            d.index -= offset
+            front.offset = offset
+            back.offset = offset
 
-    ax.plot(d[channel], '.-', c='grey', alpha=0.2)
-    ax.plot(d[channel+"s"], 'k-', lw=0.5)
+        ax.plot(d[channel], '.-', c='grey', alpha=0.2)
+        ax.plot(d[channel+"s"], 'k-', lw=0.5)
 
-    def show_transition(t, c="gray", ha="left"):
-        ax.add_patch(plt.Rectangle((t.start, t.low), t.w, t.ptp, lw=0.5, fc="none", ec=c, alpha=0.5))
-        ax.add_patch(plt.Rectangle((t.a, t.t_low), t.tau, t.thresh_diff, lw=0.5, fc="none", ec="k"))
-        ax.text(t.a + t.tau/2, t.t_high + 0.01*t.ptp, f"{t.tau:.0f} ms", ha="center")
+        def show_transition(t, c="gray", ha="left"):
+            ax.add_patch(plt.Rectangle((t.start, t.low), t.w, t.ptp, lw=0.5, fc="none", ec=c, alpha=0.5))
+            ax.add_patch(plt.Rectangle((t.a, t.t_low), t.tau, t.thresh_diff, lw=0.5, fc="none", ec="k"))
+            ax.text(t.a + t.tau/2, t.t_high + 0.01*t.ptp, f"{t.tau:.0f} ms", ha="center")
 
-    show_transition(front, "darkgreen", ha="right")
-    show_transition(back, "navy", ha="left")
-    duration = (back.a + back.tau / 2) - (front.a + front.tau / 2)
-    ax.text((front.b + back.a)/2, front.half, f"{duration:.0f} ms", ha="center")
+        show_transition(front, "darkgreen", ha="right")
+        show_transition(back, "navy", ha="left")
+        duration = (back.a + back.tau / 2) - (front.a + front.tau / 2)
+        ax.text((front.b + back.a)/2, front.half, f"{duration:.0f} ms", ha="center")
+    
+    else:
+        print("Could not detect and analyze peak")
+        ax.plot(df[channel], '.-', c='grey', alpha=0.2)
+        ax.plot(df[channel+"s"], 'k-', lw=0.5)
+
     ax.set_xlabel("Time / ms")
     ax.set_ylabel("CMOS signal")
 
@@ -153,15 +166,16 @@ def analyze_csv(fn, n_frames=0, **kwargs):
 def analyze_df(df):
     # What channel contains the strongest signal?
     channel = df.filter(regex=("Cy?")).apply(np.ptp, axis=0).idxmax()
+    
+    # Subtract baseline
+    df[channel] -= np.quantile(df[channel], 0.05)
 
     # Find front and back edges
     df = get_edges(df, channel=channel)
 
     # Smooth signal with savgol_filter. Window length is proportional to FWHM of the peak or the
-    # length of the dataset.
-    window_length = 2 * min(len(df[df.peak]) // 15, len(df) // 50) + 1
-    # window_length is at least 5 data points long
-    window_length = max(window_length, 5)
+    # length of the dataset. The window_length is at least 9 data points long
+    window_length = 2 * min(len(df[df.peak]) // 10, len(df) // 25) + 9
 
     df[channel + "s"] = savgol_filter(df[channel], window_length, 3)
 
