@@ -13,7 +13,6 @@ def get_flat_frame(stack, M = 8):
     the 10-th intensity percentile from each tile to build a low-resolution flat-field image.
     After that, the flat-field image is scaled up to the size of the original image.
     """
-    stack = np.asarray(stack)
     H, W = stack.shape[-2:]
 
     # If stack has multiple frames, extract up to 10 frames from it and average them
@@ -21,7 +20,8 @@ def get_flat_frame(stack, M = 8):
         n = np.max([stack.shape[0], 10])
         stack = stack[::n // 10][:10].mean(axis = 0)
 
-    tiles = [stack[..., y:y+M, x:x+M]
+    frame = np.asarray(stack)  # convert to numpy (it might be a dask array)
+    tiles = [frame[..., y:y+M, x:x+M]
                 for y in range(0, H, M)
                 for x in range(0, W, M)]
     return resize(np.array([np.quantile(tile, 0.1) for tile in tiles]).\
