@@ -139,8 +139,8 @@ def show_dataset(df, channel, front, back, ax, offset=0):
 
 def analyze_csv(fn, n_frames=0, **kwargs):
     df = pd.read_csv(fn, index_col='time')
-    # First frame is usually garbage, drop it
-    df = df.iloc[1:]
+    # First five frames often contains garbage, we drop it
+    df = df.iloc[5:]
 
     if n_frames:
         df = df.iloc[:n_frames]
