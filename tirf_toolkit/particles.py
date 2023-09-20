@@ -30,10 +30,10 @@ def count_particles(tirf_image: TIRFimage, channels=None):
 
         # Create small representative data subset to estimate the threshold
         n, h, w = stack.shape
-        dh, dw = np.min([50, h // 2]), np.min([50, w // 2])
+        dh, dw = np.min([100, h // 2]), np.min([100, w // 2])
         subset = stack[
                  ::n // 10,                # 10 frames sampled across the stack
-                 h // 2 - dh:h // 2 + dh,  # at most 100x100 pixels, from FOV center
+                 h // 2 - dh:h // 2 + dh,  # at most 200x200 pixels, from FOV center
                  w // 2 - dw:w // 2 + dw
                  ]
 
