@@ -30,7 +30,7 @@ def count_particles(tirf_image: TIRFimage, channels=None):
 
         # Create small representative data subset to estimate the threshold
         n, h, w = stack.shape
-        dh, dw = min(50, h // 2), min(50, w // 2)
+        dh, dw = np.min([50, h // 2]), np.min([50, w // 2])
         subset = stack[
                  ::n // 10,                # 10 frames sampled across the stack
                  h // 2 - dh:h // 2 + dh,  # at most 100x100 pixels, from FOV center
@@ -42,7 +42,7 @@ def count_particles(tirf_image: TIRFimage, channels=None):
 
         # Background occupies at least 90% of the area. On top of that,
         # we add 3x IQRs, which is a pretty conservative metric
-        thresh = q90 + 3*(q75 - q25)
+        thresh = q90 + 10*(q75 - q25)
 
         # Create a stack containing one white pixel per each detected particle
         segmented_stack = stack.map_blocks(segment_particles, threshold=thresh)
