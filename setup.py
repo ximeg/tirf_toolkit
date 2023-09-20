@@ -33,6 +33,7 @@ setup(
         "dask_image",
         "dask[distributed]>=2023.5.1",
         "scipy",
+        "scikit-image",
         "bokeh",
         "matplotlib",
         "pytest",

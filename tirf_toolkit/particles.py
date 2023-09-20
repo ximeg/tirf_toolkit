@@ -1,10 +1,13 @@
 from misc import parse_args, cond_run, intersection
 from tirf_image import TIRFimage
+from flat_field import get_flat_frame
 
 from scipy.ndimage import maximum_filter
 import numpy as np
 import pandas as pd
 
+
+from time import time
 
 def segment_particles(layer, threshold):
     """
@@ -28,22 +31,32 @@ def count_particles(tirf_image: TIRFimage, channels=None):
         # Compute an average frame from the first five frames
         stack = getattr(tirf_image, channel)
 
-        # Create small representative data subset to estimate the threshold
+        # Calculate and subtract the flat frame. We add a constant bias (mean value of the flat frame)
+        # to avoid getting negative numbers with uint16 data type.
+        print("  ", time(), "Getting flat frame")
+        flat_frame = get_flat_frame(stack)
+        print("  ", time(), "Subtracting flat frame")
+        stack = stack - flat_frame + flat_frame.mean()
+        print("  ", time(), "Getting the subset for threshold calculation")
+
+        # Create a small representative data subset to estimate the threshold
         n, h, w = stack.shape
-        dh, dw = min(50, h // 2), min(50, w // 2)
+        dh, dw = np.min([100, h // 2]), np.min([100, w // 2])
         subset = stack[
                  ::n // 10,                # 10 frames sampled across the stack
-                 h // 2 - dh:h // 2 + dh,  # at most 100x100 pixels, from FOV center
+                 h // 2 - dh:h // 2 + dh,  # at most 200x200 pixels, from FOV center
                  w // 2 - dw:w // 2 + dw
                  ]
 
         # Threshold calculation
+        print("  ", time(), "Computing quantiles")
         q25, q75, q90 = np.quantile(subset.compute(), [0.25, 0.75, 0.9])
 
         # Background occupies at least 90% of the area. On top of that,
         # we add 3x IQRs, which is a pretty conservative metric
-        thresh = q90 + 3*(q75 - q25)
+        thresh = q90 + 10*(q75 - q25)
 
+        print("  ", time(), "Segmenting stack with threshold =", thresh)
         # Create a stack containing one white pixel per each detected particle
         segmented_stack = stack.map_blocks(segment_particles, threshold=thresh)
 

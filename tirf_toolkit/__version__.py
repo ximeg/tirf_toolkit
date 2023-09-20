@@ -8,7 +8,7 @@ __title__ = "tirf_toolkit"
 __description__ = (
     "Roman's toolkit to analyze TIFF stacks from a pTIRF instrument"
 )
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 __author__ = "Roman Kiselev"
 __author_email__ = "roman.kiselev@stjude.org"
 __license__ = "BSD 2-Clause License"

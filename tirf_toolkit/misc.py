@@ -25,6 +25,9 @@ def parse_args(doc):
     # Convert numeric options to numbers
     kwargs["n_frames"] = int(kwargs["n_frames"])
 
+    # Convert true / false text to boolean
+    kwargs["align"] = True if kwargs["align"].lower() in ["true", "t", "1"] else False
+
     return kwargs
 
 

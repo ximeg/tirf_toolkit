@@ -23,6 +23,7 @@ Options:
   -p --pattern=PTRN    Pattern for input file names, without extension [default: *]
   -n --n_frames=N      Maximum number of data points to process; zero means no limit [default: 0].
   -s --status          Open Dask dashboard to see the status of computing
+  -a --align=T/F       For injection plot: align t=0 with the start of injection [default: true]
   -h --help            Show this screen.
   -v --version         Show version.
 
@@ -76,6 +77,7 @@ def main():
             plt.xlabel("time / ms")
             plt.ylabel("Number of particles")
             plt.savefig(outfile, dpi=200)
+            plt.close()
 
         start_daemon(".png", plot_csv, **kwargs)
 
@@ -89,9 +91,12 @@ def main():
         def plot_csv(fn, outfile, **kwargs):
             df, channel, front, back = analyze_csv(fn, **kwargs)
             ax = plt.figure(figsize=(7, 4)).gca()
-            show_dataset(df, channel, front, back, ax, offset=front.a)
+
+            offset = front.a if front and kwargs["align"] else 0
+            show_dataset(df, channel, front, back, ax, offset=offset)
             plt.title(chop_filename(fn))
             plt.savefig(outfile, dpi=200)
+            plt.close()
 
         start_daemon(".png", plot_csv, **kwargs)
 
