@@ -24,6 +24,7 @@ Options:
   -n --n_frames=N      Maximum number of data points to process; zero means no limit [default: 0].
   -s --status          Open Dask dashboard to see the status of computing
   -a --align=T/F       For injection plot: align t=0 with the start of injection [default: true]
+  -w --window=LENGH    Window length for Savitsky-Golay filter [default: 19]
   -h --help            Show this screen.
   -v --version         Show version.
 

@@ -161,9 +161,9 @@ def analyze_csv(fn, n_frames=0, **kwargs):
     # convert s to ms
     df.index *= 1000
 
-    return analyze_df(df)
+    return analyze_df(df, window = kwargs['window'])
 
-def analyze_df(df):
+def analyze_df(df, window = 'auto'):
     # What channel contains the strongest signal?
     channel = df.filter(regex=("Cy?")).apply(np.ptp, axis=0).idxmax()
     
@@ -174,8 +174,13 @@ def analyze_df(df):
     df = get_edges(df, channel=channel)
 
     # Smooth signal with savgol_filter. Window length is proportional to FWHM of the peak or the
-    # length of the dataset. The window_length is at least 9 data points long
-    window_length = 2 * min(len(df[df.peak]) // 10, len(df) // 25) + 9
+    # length of the dataset. The window_length is at least 11 data points long
+    
+    if window == 'auto':
+        window_length = 2 * min(len(df[df.peak]) // 30, len(df) // 60) + 11
+    else:
+        window_length = int(window)
+    print("window_length: ", window_length)
 
     df[channel + "s"] = savgol_filter(df[channel], window_length, 3)
 
